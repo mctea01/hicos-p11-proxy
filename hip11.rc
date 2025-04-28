@@ -1,0 +1,43 @@
+/* hip11.rc ── Windows 資源：版本資訊 */
+#pragma code_page(65001)
+#include <windows.h>
+
+#define VER_FILEVERSION             1,0,0,0
+#define VER_FILEVERSION_STR         "1.0.0.0\0"
+#define VER_PRODUCTVERSION          1,0,0,0
+#define VER_PRODUCTVERSION_STR      "1.0.0.0\0"
+
+#ifdef _DEBUG
+#   define VER_FILEFLAGS            VS_FF_DEBUG
+#else
+#   define VER_FILEFLAGS            0
+#endif
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION     VER_FILEVERSION
+ PRODUCTVERSION  VER_PRODUCTVERSION
+ FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+ FILEFLAGS       (VER_FILEFLAGS)
+ FILEOS          VOS__WINDOWS32
+ FILETYPE        VFT_DLL
+ FILESUBTYPE     VFT_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040404B0"          /* 0x0404 = zh-TW, 1200 = Unicode */
+        BEGIN
+            VALUE "CompanyName",      "HiCOS Proxy Project\0"
+            VALUE "FileDescription",  "HiCOS PKCS#11 Signature Proxy DLL\0"
+            VALUE "FileVersion",      VER_FILEVERSION_STR
+            VALUE "InternalName",     "hiP11.dll\0"
+            VALUE "LegalCopyright",   "Copyright © 2025 林哲全 & ChatGPT o3\0"
+            VALUE "OriginalFilename", "hiP11.dll\0"
+            VALUE "ProductName",      "HiCOS PKCS#11 Proxy\0"
+            VALUE "ProductVersion",   VER_PRODUCTVERSION_STR
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0404, 1200
+    END
+END
