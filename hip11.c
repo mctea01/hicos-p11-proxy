@@ -280,6 +280,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(CK_VOID_PTR args)
     CK_RV rv = EnsureReal();              /* 保證 g_pReal 可用 */
     if (rv != CKR_OK) return rv;
 
+    CK_C_INITIALIZE_ARGS_PTR pArgs = (CK_C_INITIALIZE_ARGS_PTR)args;
+    if (args && pArgs->flags == CKF_OS_LOCKING_OK)
+        args = NULL;
+
     /* 多執行緒：Forward 前先鎖定，避免重入 */
     EnterCriticalSection(&g_cs);
     rv = g_pReal->C_Initialize
