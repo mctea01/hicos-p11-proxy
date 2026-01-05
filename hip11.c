@@ -1,7 +1,7 @@
 /** hip11.c – HiCOS PKCS#11 Proxy（防 CKR_BUFFER_TOO_SMALL／動態簽章長度‧多執行緒‧記憶體安全）
 --- 公開授權協議: Apache License 2.0
---- 開發人員: ChatGPT o3、林哲全<jclin22873794@gmail.com>
---- (主要由ChatGPT O3) 於2025/4/28生成
+--- 開發人員: ChatGPT o3、林哲全<jclin22873794@gmail.com>、Gemini 3 Pro
+--- 初始版本(主要由ChatGPT O3) 於2025/4/28生成，後續增補不計，可參閱Git log
 --- 測試環境: Windows 11 專業版 24H2 OS組建 26100.3775 Windows 功能體驗套件 1000.26100.66.0
 --- HiCOS PKCS11 版本: 3.1.0.00012 AMD64
 --- 建議編譯指令(我的編譯指令):
@@ -32,6 +32,13 @@
 #include <openssl/x509.h>
 #include <openssl/sha.h>
 #include <openssl/crypto.h>
+/* 若使用 OpenSSL 3.0+ 且需要 Legacy 算法 (如 RIPEMD160)，可能需要 provider 支援，
+   但此處僅使用 EVP 介面，依賴環境或預設載入。 */
+
+/* 若 header 未定義，補上標準定義 */
+#ifndef CKM_RIPEMD160_RSA_PKCS
+#define CKM_RIPEMD160_RSA_PKCS 0x0000000A
+#endif
 
 /*===========  前向宣告：避免尚未定義即被使用  ===========*/
 extern CK_FUNCTION_LIST proxyList;
@@ -85,16 +92,19 @@ typedef struct {
     size_t            asn1Len;
 } HASH_INFO;
 
-static const unsigned char ASN_SHA1[]  =  {0x30,0x21,0x30,0x09,0x06,0x05,0x2b,0x0e,0x03,0x02,0x1a,0x05,0x00,0x04,0x14};
-static const unsigned char ASN_SHA256[] = {0x30,0x31,0x30,0x0d,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x01,0x05,0x00,0x04,0x20};
-static const unsigned char ASN_SHA384[] = {0x30,0x41,0x30,0x0d,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x02,0x05,0x00,0x04,0x30};
-static const unsigned char ASN_SHA512[] = {0x30,0x51,0x30,0x0d,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x03,0x05,0x00,0x04,0x40};
+static const unsigned char ASN_SHA1[]      = {0x30,0x21,0x30,0x09,0x06,0x05,0x2b,0x0e,0x03,0x02,0x1a,0x05,0x00,0x04,0x14};
+static const unsigned char ASN_SHA256[]    = {0x30,0x31,0x30,0x0d,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x01,0x05,0x00,0x04,0x20};
+static const unsigned char ASN_SHA384[]    = {0x30,0x41,0x30,0x0d,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x02,0x05,0x00,0x04,0x30};
+static const unsigned char ASN_SHA512[]    = {0x30,0x51,0x30,0x0d,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x03,0x05,0x00,0x04,0x40};
+/* RIPEMD160 OID: 1.3.36.3.2.1 */
+static const unsigned char ASN_RIPEMD160[] = {0x30,0x21,0x30,0x09,0x06,0x05,0x2b,0x24,0x03,0x02,0x01,0x05,0x00,0x04,0x14};
 
 static const HASH_INFO g_hashTbl[] = {
-    {CKM_SHA1_RSA_PKCS  , CKM_SHA1_RSA_PKCS_PSS  , NID_sha1  , ASN_SHA1  , sizeof(ASN_SHA1)},
-    {CKM_SHA256_RSA_PKCS, CKM_SHA256_RSA_PKCS_PSS, NID_sha256, ASN_SHA256, sizeof(ASN_SHA256)},
-    {CKM_SHA384_RSA_PKCS, CKM_SHA384_RSA_PKCS_PSS, NID_sha384, ASN_SHA384, sizeof(ASN_SHA384)},
-    {CKM_SHA512_RSA_PKCS, CKM_SHA512_RSA_PKCS_PSS, NID_sha512, ASN_SHA512, sizeof(ASN_SHA512)}
+    {CKM_SHA1_RSA_PKCS     , CKM_SHA1_RSA_PKCS_PSS    , NID_sha1      , ASN_SHA1      , sizeof(ASN_SHA1)},
+    {CKM_SHA256_RSA_PKCS   , CKM_SHA256_RSA_PKCS_PSS  , NID_sha256    , ASN_SHA256    , sizeof(ASN_SHA256)},
+    {CKM_SHA384_RSA_PKCS   , CKM_SHA384_RSA_PKCS_PSS  , NID_sha384    , ASN_SHA384    , sizeof(ASN_SHA384)},
+    {CKM_SHA512_RSA_PKCS   , CKM_SHA512_RSA_PKCS_PSS  , NID_sha512    , ASN_SHA512    , sizeof(ASN_SHA512)},
+    {CKM_RIPEMD160_RSA_PKCS, (CK_MECHANISM_TYPE)-1    , NID_ripemd160 , ASN_RIPEMD160 , sizeof(ASN_RIPEMD160)}
 };
 
 static const EVP_MD* md_from_nid(int nid) { return EVP_get_digestbynid(nid); }
@@ -102,7 +112,7 @@ static const EVP_MD* md_from_nid(int nid) { return EVP_get_digestbynid(nid); }
 static const HASH_INFO* find_hash_info(CK_MECHANISM_TYPE m)
 {
     for (size_t i = 0; i < sizeof(g_hashTbl) / sizeof(g_hashTbl[0]); ++i)
-        if (g_hashTbl[i].pkcs1 == m || g_hashTbl[i].pss == m)
+        if (g_hashTbl[i].pkcs1 == m || (g_hashTbl[i].pss != (CK_MECHANISM_TYPE)-1 && g_hashTbl[i].pss == m))
             return &g_hashTbl[i];
     return NULL;
 }
@@ -157,12 +167,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)
     tls.sess     = s;
     tls.key      = k;
     tls.info     = inf;
-    tls.pss      = (m->mechanism == inf->pss);
+    tls.pss      = (inf->pss != (CK_MECHANISM_TYPE)-1 && m->mechanism == inf->pss);
     tls.modBytes = modulus_bytes(s, k);
     if (!tls.modBytes) return g_pReal->C_SignInit(s, m, k);
 
+    const EVP_MD* md = md_from_nid(inf->nid);
+    if (!md) {
+        /* 若 OpenSSL 不支援此雜湊 (例如 legacy 模組未載入)，回退給實體 DLL 嘗試 */
+        tls_reset();
+        return g_pReal->C_SignInit(s, m, k);
+    }
+
     tls.mdctx = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(tls.mdctx, md_from_nid(inf->nid), NULL);
+    if (!tls.mdctx) {
+        tls_reset();
+        return CKR_HOST_MEMORY;
+    }
+
+    if (EVP_DigestInit_ex(tls.mdctx, md, NULL) != 1) {
+        tls_reset();
+        return CKR_GENERAL_ERROR;
+    }
     return CKR_OK;
 }
 
@@ -230,6 +255,7 @@ static CK_RV do_final(CK_BYTE_PTR p, CK_ULONG l, int single,
 
     size_t emLen = tls.modBytes;
     unsigned char *em = (unsigned char*)OPENSSL_malloc(emLen);
+    if (!em) { tls_reset(); return CKR_HOST_MEMORY; }
 
     int ok = tls.pss ? build_em_pss(em, emLen, tls.info, dgst, dgLen)
                      : build_em_v15(em, emLen, tls.info, dgst, dgLen);
