@@ -19,3 +19,5 @@ showInfo = false
 ```
 主要測試工具: Jsign 7.1 (Java HotSpot(TM) 64-Bit Server VM Oracle GraalVM 21.0.7+8.1 (build 21.0.7+8-LTS-jvmci-23.1-b60, mixed mode, sharing) java 21.0.7 2025-04-15 LTS) <br />
 提示: 自然人憑證於HiCOS PKCS#11之cert1為數位簽署、cert2為檔案加、解密、資料交換
+**2025/1/10更新，發現我openssl的依賴是動態庫，所以我編譯的版本不能給人直接用QWQ(我今天重編openssl忘記保留靜態庫了)**
+我還是會編譯上傳，但是要用還是需要自行準備openssl
