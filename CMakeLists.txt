@@ -18,7 +18,7 @@ endif()
 # 自行指定：
 #   -DOPENSSL_ROOT_DIR=C:/OpenSSL/3
 # 或預先設定環境變數 OPENSSL_ROOT_DIR
-set(OPENSSL_USE_STATIC_LIBS ON)      # 與 /MT 對應，全部使用靜態 lib
+set(OPENSSL_USE_STATIC_LIBS OFF)      # 與 /MT 對應，全部使用靜態 lib
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 
 # ────────── 目標 hiP11.dll ──────────
