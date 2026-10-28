@@ -1,3 +1,5 @@
+## 專案存檔 更好的方案請看[chouhsiang/open-gpki-pkcs11](https://github.com/chouhsiang/open-gpki-pkcs11)
+
 # hicos-p11-proxy
 HiCOS PKCS#11 Proxy（防 CKR_BUFFER_TOO_SMALL、auto-padding)
 公開授權協議: Apache License 2.0 <br />
